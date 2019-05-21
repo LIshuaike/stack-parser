@@ -58,13 +58,15 @@ class Corpus(object):
                           for sentence, sequence in zip(self, sequences)]
 
     @classmethod
-    def load(cls, fname):
+    def load(cls, fname, columns=range(10)):
         start, sentences = 0, []
+        names = [Sentence._fields[col] for col in columns]
         with open(fname, 'r') as f:
             lines = [line.strip() for line in f]
         for i, line in enumerate(lines):
             if not line:
-                sentence = Sentence(*zip(*[l.split() for l in lines[start:i]]))
+                values = zip(*[l.split() for l in lines[start:i]])
+                sentence = Sentence(**dict(zip(names, values)))
                 sentences.append(sentence)
                 start = i + 1
         corpus = cls(sentences)

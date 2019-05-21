@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
+import unicodedata
 from collections import Counter
 
-import regex
 import torch
 
 
@@ -26,7 +26,7 @@ class Vocab(object):
 
         # ids of punctuation that appear in words
         self.puncts = sorted(i for word, i in self.word_dict.items()
-                             if regex.match(r'\p{P}+$', word))
+                             if self.is_punctuation(word))
 
         self.n_words = len(self.words)
         self.n_chars = len(self.chars)
@@ -91,7 +91,7 @@ class Vocab(object):
         self.word_dict = {w: i for i, w in enumerate(self.words)}
         self.char_dict = {c: i for i, c in enumerate(self.chars)}
         self.puncts = sorted(i for word, i in self.word_dict.items()
-                             if regex.match(r'\p{P}+$', word))
+                             if self.is_punctuation(word))
         self.n_words = len(self.words)
         self.n_chars = len(self.chars)
 
@@ -116,3 +116,7 @@ class Vocab(object):
         vocab = cls(words, chars, tags, rels)
 
         return vocab
+
+    @classmethod
+    def is_punctuation(cls, word):
+        return all(unicodedata.category(char).startswith('P') for char in word)
