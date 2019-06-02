@@ -19,8 +19,6 @@ class BiaffineParser(nn.Module):
         self.pretrained = nn.Embedding.from_pretrained(embeddings)
         self.word_embed = nn.Embedding(num_embeddings=config.n_words,
                                        embedding_dim=config.n_embed)
-        self.tag_embed = nn.Embedding(num_embeddings=config.n_tags,
-                                      embedding_dim=config.n_embed)
         # the char-lstm layer
         self.char_lstm = CHAR_LSTM(n_chars=config.n_chars,
                                    n_embed=config.n_char_embed,
@@ -31,15 +29,18 @@ class BiaffineParser(nn.Module):
                                hidden_size=config.n_lstm_hidden,
                                num_layers=config.n_lstm_layers,
                                dropout=config.lstm_dropout)
-        self.dep_lstm = BiLSTM(input_size=config.n_embed*3,
+        self.dep_lstm = BiLSTM(input_size=config.n_embed*2+500,
                                hidden_size=config.n_lstm_hidden,
                                num_layers=config.n_lstm_layers,
                                dropout=config.lstm_dropout)
-        self.tag_mix = ScalarMix(config.n_lstm_layers)
+        self.mix = ScalarMix(config.n_lstm_layers)
         self.lstm_dropout = SharedDropout(p=config.lstm_dropout)
 
         # the MLP layers
         self.mlp_tag = MLP(n_in=config.n_lstm_hidden*2,
+                           n_hidden=config.n_mlp_arc,
+                           dropout=0.5)
+        self.mlp_dep = MLP(n_in=config.n_lstm_hidden*2,
                            n_hidden=config.n_mlp_arc,
                            dropout=0.5)
         self.mlp_arc_h = MLP(n_in=config.n_lstm_hidden*2,
@@ -73,6 +74,8 @@ class BiaffineParser(nn.Module):
 
     def reset_parameters(self):
         nn.init.zeros_(self.word_embed.weight)
+        nn.init.orthogonal_(self.ffn_tag.weight)
+        nn.init.zeros_(self.ffn_tag.bias)
 
     def forward(self, words, chars):
         # get the mask and lengths of given batch
@@ -93,14 +96,13 @@ class BiaffineParser(nn.Module):
         sorted_lens, indices = torch.sort(lens, descending=True)
         inverse_indices = indices.argsort()
         x = pack_padded_sequence(embed[indices], sorted_lens, True)
-        x = self.tag_lstm(x)[-1]
-        x, _ = pad_packed_sequence(x, True)
-        x_tag = self.lstm_dropout(x)[inverse_indices]
+        x = [pad_packed_sequence(i, True)[0] for i in self.tag_lstm(x)]
+        x_tag = self.lstm_dropout(x[-1])[inverse_indices]
+        x_dep = self.lstm_dropout(self.mix(x))[inverse_indices]
         x_tag = self.mlp_tag(x_tag)
-        s_tag = self.ffn_tag(x_tag)
+        x_dep = self.mlp_dep(x_dep)
 
-        tag_embed = self.tag_embed(s_tag.argmax(-1))
-        x = torch.cat((embed, tag_embed), dim=-1)
+        x = torch.cat((embed, x_dep), dim=-1)
         x = pack_padded_sequence(x[indices], sorted_lens, True)
         x = self.dep_lstm(x)[-1]
         x, _ = pad_packed_sequence(x, True)
@@ -112,6 +114,7 @@ class BiaffineParser(nn.Module):
         rel_h = self.mlp_rel_h(x_dep)
         rel_d = self.mlp_rel_d(x_dep)
 
+        s_tag = self.ffn_tag(x_tag)
         # get arc and rel scores from the bilinear attention
         # [batch_size, seq_len, seq_len]
         s_arc = self.arc_attn(arc_d, arc_h)
