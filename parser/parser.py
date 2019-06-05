@@ -68,6 +68,8 @@ class BiaffineParser(nn.Module):
 
     def reset_parameters(self):
         nn.init.zeros_(self.word_embed.weight)
+        nn.init.orthogonal_(self.ffn_tag.weight)
+        nn.init.zeros_(self.ffn_tag.bias)
 
     def forward(self, words, chars):
         # get the mask and lengths of given batch
