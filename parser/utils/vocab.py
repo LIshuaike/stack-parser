@@ -4,13 +4,16 @@ import unicodedata
 from collections import Counter
 
 import torch
+from pytorch_pretrained_bert import BertTokenizer
 
 
 class Vocab(object):
     PAD = '<PAD>'
     UNK = '<UNK>'
+    BOS = '<BOS>'
+    EOS = '<EOS>'
 
-    def __init__(self, words, chars, pos_tags, dep_tags, rels):
+    def __init__(self, bert_vocab, words, chars, pos_tags, dep_tags, rels):
         self.pad_index = 0
         self.unk_index = 1
 
@@ -26,9 +29,7 @@ class Vocab(object):
         self.dep_tag_dict = {tag: i for i, tag in enumerate(self.dep_tags)}
         self.rel_dict = {rel: i for i, rel in enumerate(self.rels)}
 
-        # ids of punctuation that appear in words
-        self.puncts = sorted(i for word, i in self.word_dict.items()
-                             if self.is_punctuation(word))
+        self.tokenizer = BertTokenizer.from_pretrained(bert_vocab)
 
         self.n_words = len(self.words)
         self.n_chars = len(self.chars)
@@ -104,21 +105,39 @@ class Vocab(object):
         self.n_chars = len(self.chars)
 
     def numericalize(self, corpus, dep=True, training=True):
-        words = [self.word2id(seq) for seq in corpus.words]
-        chars = [self.char2id(seq) for seq in corpus.words]
+        subwords, starts = [], []
+
+        for seq in corpus.words:
+            seq = [self.tokenizer.tokenize(token) for token in seq]
+            seq = [piece if piece else ['[PAD]'] for piece in seq]
+            seq = [['[CLS]']] + seq + [['[SEP]']]
+            lengths = [0] + [len(piece) for piece in seq]
+            # flatten the word pieces
+            subwords.append(sum(seq, []))
+            # record the start position of all words
+            starts.append(torch.tensor(lengths).cumsum(0)[:-2])
+        subwords = [torch.tensor(self.tokenizer.convert_tokens_to_ids(tokens))
+                    for tokens in subwords]
+        mask = [torch.ones(len(tokens)) for tokens in subwords]
+        start_mask = [~mask[i].byte().index_fill_(0, starts[i], 0)
+                      for i in range(len(mask))]
+        bert = [(i, j, k) for i, j, k in zip(subwords, mask, start_mask)]
+
+        words = [self.word2id([self.BOS] + seq) for seq in corpus.words]
+        chars = [self.char2id([self.BOS] + seq) for seq in corpus.words]
         if not training:
-            return words, chars
+            return bert, words, chars
         if not dep:
-            tags = [self.pos_tag2id(seq) for seq in corpus.tags]
-            return words, chars, tags
+            tags = [self.pos_tag2id([self.BOS] + seq) for seq in corpus.tags]
+            return bert, words, chars, tags
         else:
-            tags = [self.dep_tag2id(seq) for seq in corpus.tags]
-            arcs = [torch.tensor(seq) for seq in corpus.heads]
-            rels = [self.rel2id(seq) for seq in corpus.rels]
-            return words, chars, tags, arcs, rels
+            tags = [self.dep_tag2id([self.BOS] + seq) for seq in corpus.tags]
+            arcs = [torch.tensor([0] + seq) for seq in corpus.heads]
+            rels = [self.rel2id([self.BOS] + seq) for seq in corpus.rels]
+            return bert, words, chars, tags, arcs, rels
 
     @classmethod
-    def from_corpora(cls, tag_corpus, dep_corpus, min_freq=1):
+    def from_corpora(cls, bert_vocab, tag_corpus, dep_corpus, min_freq=1):
         word_seqs = tag_corpus.words + dep_corpus.words
         words = Counter(word.lower() for seq in word_seqs for word in seq)
         words = list(word for word, freq in words.items() if freq >= min_freq)
@@ -126,7 +145,7 @@ class Vocab(object):
         pos_tags = list({tag for seq in tag_corpus.tags for tag in seq})
         dep_tags = list({tag for seq in dep_corpus.tags for tag in seq})
         rels = list({rel for seq in dep_corpus.rels for rel in seq})
-        vocab = cls(words, chars, pos_tags, dep_tags, rels)
+        vocab = cls(bert_vocab, words, chars, pos_tags, dep_tags, rels)
 
         return vocab
 

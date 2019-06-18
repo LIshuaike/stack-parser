@@ -18,10 +18,6 @@ class Train(object):
         subparser = parser.add_parser(
             name, help='Train a model.'
         )
-        subparser.add_argument('--pos', default=0, type=int,
-                               help='max num of sentences in fpos to use')
-        subparser.add_argument('--pos-batch-size', default=10000, type=int,
-                               help='num of tokens per training update')
         subparser.add_argument('--patience', default=100, type=int,
                                help='patience for early stop')
         subparser.add_argument('--buckets', default=64, type=int,
@@ -46,14 +42,17 @@ class Train(object):
     def __call__(self, config):
         if config.preprocess:
             print("Preprocess the corpus")
-            pos_train = Corpus.load(config.fptrain, [1, 4], config.pos)
-            dep_train = Corpus.load(config.ftrain)
-            pos_dev = Corpus.load(config.fpdev, [1, 4])
-            dep_dev = Corpus.load(config.fdev)
-            pos_test = Corpus.load(config.fptest, [1, 4])
-            dep_test = Corpus.load(config.ftest)
+            pos_train = Corpus.load(config.fptrain, [1, 4], config.max_len)
+            dep_train = Corpus.load(config.ftrain, max_len=config.max_len)
+            pos_dev = Corpus.load(config.fpdev, [1, 4], config.max_len)
+            dep_dev = Corpus.load(config.fdev, max_len=config.max_len)
+            pos_test = Corpus.load(config.fptest, [1, 4], config.max_len)
+            dep_test = Corpus.load(config.ftest, max_len=config.max_len)
             print("Create the vocab")
-            vocab = Vocab.from_corpora(pos_train, dep_train, 2)
+            vocab = Vocab.from_corpora(config.bert_vocab,
+                                       pos_train,
+                                       dep_train,
+                                       2)
             vocab.read_embeddings(Embedding.load(config.fembed))
             print("Load the dataset")
             pos_trainset = TextDataset(vocab.numericalize(pos_train, False),
@@ -113,17 +112,23 @@ class Train(object):
 
         print(vocab)
         print(f"{'pos_train:':10} {len(pos_trainset):7} sentences in total, "
-              f"{len(pos_train_loader):4} batches provided")
+              f"{len(pos_train_loader):4} batches provided with "
+              f"{len(pos_trainset.buckets)} buckets")
         print(f"{'dep_train:':10} {len(dep_trainset):7} sentences in total, "
-              f"{len(dep_train_loader):4} batches provided")
+              f"{len(dep_train_loader):4} batches provided with "
+              f"{len(dep_trainset.buckets)} buckets")
         print(f"{'pos_dev:':10} {len(pos_devset):7} sentences in total, "
-              f"{len(pos_dev_loader):4} batches provided")
+              f"{len(pos_dev_loader):4} batches provided with "
+              f"{len(pos_devset.buckets)} buckets")
         print(f"{'dep_dev:':10} {len(dep_devset):7} sentences in total, "
-              f"{len(dep_dev_loader):4} batches provided")
+              f"{len(dep_dev_loader):4} batches provided with "
+              f"{len(dep_devset.buckets)} buckets")
         print(f"{'pos_test:':10} {len(pos_testset):7} sentences in total, "
-              f"{len(pos_test_loader):4} batches provided")
+              f"{len(pos_test_loader):4} batches provided with "
+              f"{len(pos_testset.buckets)} buckets")
         print(f"{'dep_test:':10} {len(dep_testset):7} sentences in total, "
-              f"{len(dep_test_loader):4} batches provided")
+              f"{len(dep_test_loader):4} batches provided with "
+              f"{len(dep_testset.buckets)} buckets")
 
         print("Create the model")
         parser = BiaffineParser(config, vocab.embeddings)
