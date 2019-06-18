@@ -29,7 +29,7 @@ class Predict(object):
         model = Model(vocab, parser)
 
         print("Load the dataset")
-        corpus = Corpus.load(config.fdata)
+        corpus = Corpus.load(config.fdata, max_len=config.max_len)
         dataset = TextDataset(vocab.numericalize(corpus, False))
         # set the data loader
         loader = batchify(dataset, config.batch_size)

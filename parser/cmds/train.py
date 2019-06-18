@@ -8,6 +8,7 @@ from parser.utils import Corpus, Embedding, Vocab
 from parser.utils.data import TextDataset, batchify
 
 import torch
+import torch.nn as nn
 from torch.optim import Adam
 from torch.optim.lr_scheduler import ExponentialLR
 
@@ -33,13 +34,13 @@ class Train(object):
 
     def __call__(self, config):
         print("Preprocess the data")
-        train = Corpus.load(config.ftrain)
-        dev = Corpus.load(config.fdev)
-        test = Corpus.load(config.ftest)
+        train = Corpus.load(config.ftrain, max_len=config.max_len)
+        dev = Corpus.load(config.fdev, max_len=config.max_len)
+        test = Corpus.load(config.ftest, max_len=config.max_len)
         if os.path.exists(config.vocab):
             vocab = torch.load(config.vocab)
         else:
-            vocab = Vocab.from_corpus(corpus=train, min_freq=2)
+            vocab = Vocab.from_corpus(config.bert_vocab, train, 2)
             vocab.read_embeddings(Embedding.load(config.fembed))
             torch.save(vocab, config.vocab)
         config.update({
@@ -72,9 +73,9 @@ class Train(object):
               f"{len(test_loader):3} batches provided")
 
         print("Create the model")
-        parser = BiaffineParser(config, vocab.embeddings)
-        if torch.cuda.is_available():
-            parser = parser.cuda()
+        parser = BiaffineParser(config, vocab.embeddings).to(config.device)
+        if torch.cuda.device_count() > 1:
+            parser = nn.DataParallel(parser)
         print(f"{parser}\n")
 
         model = Model(vocab, parser)
@@ -105,7 +106,10 @@ class Train(object):
             # save the model if it is the best so far
             if dev_metric_p > best_metric and epoch > config.patience:
                 best_e, best_metric = epoch, dev_metric_p
-                model.parser.save(config.model)
+                if hasattr(model.parser, 'module'):
+                    model.parser.module.save(config.model)
+                else:
+                    model.parser.save(config.model)
                 print(f"{t}s elapsed (saved)\n")
             else:
                 print(f"{t}s elapsed\n")
