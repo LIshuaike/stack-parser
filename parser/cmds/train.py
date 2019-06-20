@@ -8,6 +8,7 @@ from parser.utils import Corpus, Embedding, Vocab
 from parser.utils.data import TextDataset, batchify
 
 import torch
+import torch.nn as nn
 from torch.optim import Adam
 from torch.optim.lr_scheduler import ExponentialLR
 
@@ -131,9 +132,9 @@ class Train(object):
               f"{len(dep_testset.buckets)} buckets")
 
         print("Create the model")
-        parser = BiaffineParser(config, vocab.embeddings)
-        if torch.cuda.is_available():
-            parser = parser.cuda()
+        parser = BiaffineParser(config, vocab.embeddings).to(config.device)
+        if torch.cuda.device_count() > 1:
+            parser = nn.DataParallel(parser)
         print(f"{parser}\n")
 
         model = Model(vocab, parser)
@@ -166,7 +167,10 @@ class Train(object):
             # save the model if it is the best so far
             if dev_m > best_metric and epoch > config.patience:
                 best_e, best_metric = epoch, dev_m
-                model.parser.save(config.model)
+                if hasattr(model.parser, 'module'):
+                    model.parser.module.save(config.model)
+                else:
+                    model.parser.save(config.model)
                 print(f"{t}s elapsed (saved)\n")
             else:
                 print(f"{t}s elapsed\n")

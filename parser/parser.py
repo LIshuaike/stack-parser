@@ -69,7 +69,6 @@ class BiaffineParser(nn.Module):
                                  bias_y=True)
         self.pad_index = config.pad_index
         self.unk_index = config.unk_index
-        self.criterion = nn.CrossEntropyLoss()
 
         self.reset_parameters()
 
@@ -84,13 +83,14 @@ class BiaffineParser(nn.Module):
         # get the mask and lengths of given batch
         mask = words.ne(self.pad_index)
         lens = mask.sum(dim=1)
+        batch_size, seq_len = words.shape
         # set the indices larger than num_embeddings to unk_index
         ext_mask = words.ge(self.word_embed.num_embeddings)
         ext_words = words.masked_fill(ext_mask, self.unk_index)
 
         # get outputs from embedding layers
         word_embed = self.pretrained(words) + self.word_embed(ext_words)
-        word_embed += self.bert_embed(*bert)
+        word_embed = word_embed[:, :max(lens)] + self.bert_embed(*bert)
         char_embed = self.char_lstm(chars[mask])
         char_embed = pad_sequence(torch.split(char_embed, lens.tolist()), True)
         word_embed, char_embed = self.embed_dropout(word_embed, char_embed)
@@ -100,7 +100,8 @@ class BiaffineParser(nn.Module):
         sorted_lens, indices = torch.sort(lens, descending=True)
         inverse_indices = indices.argsort()
         x = pack_padded_sequence(x[indices], sorted_lens, True)
-        x = [pad_packed_sequence(i, True)[0] for i in self.lstm(x)]
+        x = [pad_packed_sequence(i, True, total_length=seq_len)[0]
+             for i in self.lstm(x)]
         x_tag = self.lstm_dropout(self.tag_mix(x))[inverse_indices]
         x_dep = self.lstm_dropout(self.dep_mix(x))[inverse_indices]
         x_tag = self.mlp_tag(x_tag)
@@ -164,19 +165,3 @@ class BiaffineParser(nn.Module):
             'scheduler_state_dict': scheduler.state_dict()
         }
         torch.save(state, fname)
-
-    def get_loss(self, s_tag, s_arc, s_rel, gold_tags, gold_arcs, gold_rels):
-        s_rel = s_rel[torch.arange(len(s_rel)), gold_arcs]
-
-        tag_loss = self.criterion(s_tag, gold_tags)
-        arc_loss = self.criterion(s_arc, gold_arcs)
-        rel_loss = self.criterion(s_rel, gold_rels)
-        loss = tag_loss + arc_loss + rel_loss
-
-        return loss
-
-    def decode(self, s_arc, s_rel):
-        pred_arcs = s_arc.argmax(dim=-1)
-        pred_rels = s_rel[torch.arange(len(s_rel)), pred_arcs].argmax(dim=-1)
-
-        return pred_arcs, pred_rels
