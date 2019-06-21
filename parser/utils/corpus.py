@@ -11,7 +11,6 @@ Sentence = namedtuple(typename='Sentence',
 
 
 class Corpus(object):
-    ROOT = '<ROOT>'
 
     def __init__(self, sentences):
         super(Corpus, self).__init__()
@@ -33,19 +32,19 @@ class Corpus(object):
 
     @property
     def words(self):
-        return [[self.ROOT] + list(sentence.FORM) for sentence in self]
+        return [list(sentence.FORM) for sentence in self]
 
     @property
     def tags(self):
-        return [[self.ROOT] + list(sentence.POS) for sentence in self]
+        return [list(sentence.POS) for sentence in self]
 
     @property
     def heads(self):
-        return [[0] + list(map(int, sentence.HEAD)) for sentence in self]
+        return [list(map(int, sentence.HEAD)) for sentence in self]
 
     @property
     def rels(self):
-        return [[self.ROOT] + list(sentence.DEPREL) for sentence in self]
+        return [list(sentence.DEPREL) for sentence in self]
 
     @heads.setter
     def heads(self, sequences):
@@ -58,7 +57,7 @@ class Corpus(object):
                           for sentence, sequence in zip(self, sequences)]
 
     @classmethod
-    def load(cls, fname, columns=range(10)):
+    def load(cls, fname, columns=range(10), max_len=0):
         start, sentences = 0, []
         names = [Sentence._fields[col] for col in columns]
         with open(fname, 'r') as f:
@@ -69,9 +68,11 @@ class Corpus(object):
                 sentence = Sentence(**dict(zip(names, values)))
                 sentences.append(sentence)
                 start = i + 1
-        corpus = cls(sentences)
+        if max_len > 0:
+            sentences = [sentence for sentence in sentences
+                         if len(''.join(sentence.FORM)) < max_len]
 
-        return corpus
+        return cls(sentences)
 
     def save(self, fname):
         with open(fname, 'w') as f:

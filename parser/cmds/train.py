@@ -33,9 +33,9 @@ class Train(object):
 
     def __call__(self, config):
         print("Preprocess the data")
-        train = Corpus.load(config.ftrain)
-        dev = Corpus.load(config.fdev)
-        test = Corpus.load(config.ftest)
+        train = Corpus.load(config.ftrain, max_len=config.max_len)
+        dev = Corpus.load(config.fdev, max_len=config.max_len)
+        test = Corpus.load(config.ftest, max_len=config.max_len)
         if os.path.exists(config.vocab):
             vocab = torch.load(config.vocab)
         else:
