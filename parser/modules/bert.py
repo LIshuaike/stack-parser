@@ -43,6 +43,5 @@ class BertEmbedding(nn.Module):
         bert = self.scalar_mix(bert)
         bert = pad_sequence(torch.split(bert[start_mask], lens.tolist()), True)
         bert = self.projection(bert)
-        bert = self.dropout(bert)
 
         return bert
