@@ -17,13 +17,13 @@ class Model(object):
     def train(self, loader):
         self.parser.train()
 
-        for words, chars, tags, arcs, rels in loader:
+        for bert, words, chars, tags, arcs, rels in loader:
             self.optimizer.zero_grad()
 
             mask = words.ne(self.vocab.pad_index)
             # ignore the first token of each sentence
             mask[:, 0] = 0
-            s_tag, s_arc, s_rel = self.parser(words, chars)
+            s_tag, s_arc, s_rel = self.parser(bert, words, chars)
             s_tag, s_arc, s_rel = s_tag[mask], s_arc[mask], s_rel[mask]
             gold_tags = tags[mask]
             gold_arcs, gold_rels = arcs[mask], rels[mask]
@@ -41,11 +41,11 @@ class Model(object):
 
         loss, metric_t, metric_p = 0, AccuracyMethod(), AttachmentMethod()
 
-        for words, chars, tags, arcs, rels in loader:
+        for bert, words, chars, tags, arcs, rels in loader:
             mask = words.ne(self.vocab.pad_index)
             # ignore the first token of each sentence
             mask[:, 0] = 0
-            s_tag, s_arc, s_rel = self.parser(words, chars)
+            s_tag, s_arc, s_rel = self.parser(bert, words, chars)
             s_tag, s_arc, s_rel = s_tag[mask], s_arc[mask], s_rel[mask]
             gold_tags, pred_tags = tags[mask], s_tag.argmax(dim=-1)
             gold_arcs, gold_rels = arcs[mask], rels[mask]
@@ -64,12 +64,12 @@ class Model(object):
         self.parser.eval()
 
         all_arcs, all_rels = [], []
-        for words, chars in loader:
+        for bert, words, chars in loader:
             mask = words.ne(self.vocab.pad_index)
             # ignore the first token of each sentence
             mask[:, 0] = 0
             lens = mask.sum(dim=1).tolist()
-            s_tag, s_arc, s_rel = self.parser(words, chars)
+            s_tag, s_arc, s_rel = self.parser(bert, words, chars)
             s_tag, s_arc, s_rel = s_tag[mask], s_arc[mask], s_rel[mask]
             pred_arcs, pred_rels = self.parser.decode(s_arc, s_rel)
 

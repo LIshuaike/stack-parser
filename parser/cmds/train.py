@@ -39,7 +39,7 @@ class Train(object):
         if os.path.exists(config.vocab):
             vocab = torch.load(config.vocab)
         else:
-            vocab = Vocab.from_corpus(corpus=train, min_freq=2)
+            vocab = Vocab.from_corpus(config.bert_vocab, train, 2)
             vocab.read_embeddings(Embedding.load(config.fembed))
             torch.save(vocab, config.vocab)
         config.update({
