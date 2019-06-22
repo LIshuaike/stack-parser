@@ -17,10 +17,10 @@ class Vocab(object):
         self.pad_index = 0
         self.unk_index = 1
 
-        self.words = [self.PAD, self.UNK] + sorted(words)
-        self.chars = [self.PAD, self.UNK] + sorted(chars)
-        self.tags = sorted(tags)
-        self.rels = sorted(rels)
+        self.words = [self.PAD, self.UNK, self.BOS] + sorted(words)
+        self.chars = [self.PAD, self.UNK, self.BOS] + sorted(chars)
+        self.tags = [self.BOS] + sorted(tags)
+        self.rels = [self.BOS] + sorted(rels)
 
         self.word_dict = {word: i for i, word in enumerate(self.words)}
         self.char_dict = {char: i for i, char in enumerate(self.chars)}
