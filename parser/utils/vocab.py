@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import unicodedata
 from collections import Counter
 
 import torch
@@ -33,7 +32,7 @@ class Vocab(object):
         self.n_chars = len(self.chars)
         self.n_tags = len(self.tags)
         self.n_rels = len(self.rels)
-        self.n_train_words = self.n_words
+        self.n_init = self.n_words
 
     def __repr__(self):
         info = f"{self.__class__.__name__}: "
@@ -48,11 +47,11 @@ class Vocab(object):
         return torch.tensor([self.word_dict.get(word.lower(), self.unk_index)
                              for word in sequence])
 
-    def char2id(self, sequence, max_length=20):
-        char_ids = torch.zeros(len(sequence), max_length, dtype=torch.long)
+    def char2id(self, sequence, max_len=20):
+        char_ids = torch.zeros(len(sequence), max_len, dtype=torch.long)
         for i, word in enumerate(sequence):
             ids = torch.tensor([self.char_dict.get(c, self.unk_index)
-                                for c in word[:max_length]])
+                                for c in word[:max_len]])
             char_ids[i, :len(ids)] = ids
 
         return char_ids
@@ -91,8 +90,6 @@ class Vocab(object):
         self.chars += sorted(set(''.join(words)).difference(self.char_dict))
         self.word_dict = {w: i for i, w in enumerate(self.words)}
         self.char_dict = {c: i for i, c in enumerate(self.chars)}
-        self.puncts = sorted(i for word, i in self.word_dict.items()
-                             if self.is_punctuation(word))
         self.n_words = len(self.words)
         self.n_chars = len(self.chars)
 
@@ -136,6 +133,3 @@ class Vocab(object):
 
         return vocab
 
-    @classmethod
-    def is_punctuation(cls, word):
-        return all(unicodedata.category(char).startswith('P') for char in word)
