@@ -66,7 +66,6 @@ class BiaffineParser(nn.Module):
                                  bias_y=True)
         self.pad_index = config.pad_index
         self.unk_index = config.unk_index
-        self.criterion = nn.CrossEntropyLoss()
 
         self.reset_parameters()
 
@@ -157,19 +156,3 @@ class BiaffineParser(nn.Module):
             'scheduler_state_dict': scheduler.state_dict()
         }
         torch.save(state, fname)
-
-    def get_loss(self, s_tag, s_arc, s_rel, gold_tags, gold_arcs, gold_rels):
-        s_rel = s_rel[torch.arange(len(s_rel)), gold_arcs]
-
-        tag_loss = self.criterion(s_tag, gold_tags)
-        arc_loss = self.criterion(s_arc, gold_arcs)
-        rel_loss = self.criterion(s_rel, gold_rels)
-        loss = tag_loss + arc_loss + rel_loss
-
-        return loss
-
-    def decode(self, s_arc, s_rel):
-        pred_arcs = s_arc.argmax(dim=-1)
-        pred_rels = s_rel[torch.arange(len(s_rel)), pred_arcs].argmax(dim=-1)
-
-        return pred_arcs, pred_rels
