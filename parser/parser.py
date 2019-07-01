@@ -18,8 +18,7 @@ class BiaffineParser(nn.Module):
         # the embedding layer
         self.bert_embed = BertEmbedding(path=config.bert_path,
                                         n_layers=config.n_bert_layers,
-                                        n_out=config.n_bert_embed,
-                                        dropout=config.bert_dropout)
+                                        n_out=config.n_bert_embed)
         self.pretrained = nn.Embedding.from_pretrained(embeddings)
         self.word_embed = nn.Embedding(num_embeddings=config.n_words,
                                        embedding_dim=config.n_embed)

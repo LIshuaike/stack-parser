@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import unicodedata
 from collections import Counter
 
 import torch
@@ -17,11 +16,11 @@ class Vocab(object):
         self.pad_index = 0
         self.unk_index = 1
 
-        self.words = [self.PAD, self.UNK] + sorted(words)
-        self.chars = [self.PAD, self.UNK] + sorted(chars)
-        self.pos_tags = sorted(pos_tags)
-        self.dep_tags = sorted(dep_tags)
-        self.rels = sorted(rels)
+        self.words = [self.PAD, self.UNK, self.BOS] + sorted(words)
+        self.chars = [self.PAD, self.UNK, self.BOS] + sorted(chars)
+        self.pos_tags = [self.BOS] + sorted(pos_tags)
+        self.dep_tags = [self.BOS] + sorted(dep_tags)
+        self.rels = [self.BOS] + sorted(rels)
 
         self.word_dict = {word: i for i, word in enumerate(self.words)}
         self.char_dict = {char: i for i, char in enumerate(self.chars)}
@@ -52,11 +51,11 @@ class Vocab(object):
         return torch.tensor([self.word_dict.get(word.lower(), self.unk_index)
                              for word in sequence])
 
-    def char2id(self, sequence, max_length=20):
-        char_ids = torch.zeros(len(sequence), max_length, dtype=torch.long)
+    def char2id(self, sequence, max_len=20):
+        char_ids = torch.zeros(len(sequence), max_len, dtype=torch.long)
         for i, word in enumerate(sequence):
             ids = torch.tensor([self.char_dict.get(c, self.unk_index)
-                                for c in word[:max_length]])
+                                for c in word[:max_len]])
             char_ids[i, :len(ids)] = ids
 
         return char_ids
@@ -99,8 +98,6 @@ class Vocab(object):
         self.chars += sorted(set(''.join(words)).difference(self.char_dict))
         self.word_dict = {w: i for i, w in enumerate(self.words)}
         self.char_dict = {c: i for i, c in enumerate(self.chars)}
-        self.puncts = sorted(i for word, i in self.word_dict.items()
-                             if self.is_punctuation(word))
         self.n_words = len(self.words)
         self.n_chars = len(self.chars)
 
@@ -118,7 +115,7 @@ class Vocab(object):
             starts.append(torch.tensor(lengths).cumsum(0)[:-2])
         subwords = [torch.tensor(self.tokenizer.convert_tokens_to_ids(tokens))
                     for tokens in subwords]
-        mask = [torch.ones(len(tokens)).long() for tokens in subwords]
+        mask = [torch.ones(len(tokens)) for tokens in subwords]
         start_mask = [~mask[i].byte().index_fill_(0, starts[i], 0)
                       for i in range(len(mask))]
         bert = [(i, j, k) for i, j, k in zip(subwords, mask, start_mask)]
@@ -148,7 +145,3 @@ class Vocab(object):
         vocab = cls(bert_vocab, words, chars, pos_tags, dep_tags, rels)
 
         return vocab
-
-    @classmethod
-    def is_punctuation(cls, word):
-        return all(unicodedata.category(char).startswith('P') for char in word)
