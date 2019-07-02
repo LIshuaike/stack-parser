@@ -95,7 +95,8 @@ class BiaffineParser(nn.Module):
         sorted_lens, indices = torch.sort(lens, descending=True)
         inverse_indices = indices.argsort()
         x = pack_padded_sequence(x[indices], sorted_lens, True)
-        x = [pad_packed_sequence(i, True)[0] for i in self.lstm(x)]
+        x = [pad_packed_sequence(i, True, total_length=seq_len)[0]
+             for i in self.lstm(x)]
         x_tag = self.lstm_dropout(self.tag_mix(x))[inverse_indices]
         x_dep = self.lstm_dropout(self.dep_mix(x))[inverse_indices]
 

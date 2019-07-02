@@ -58,19 +58,22 @@ class Train(object):
         devset = TextDataset(vocab.numericalize(dev), config.buckets)
         testset = TextDataset(vocab.numericalize(test), config.buckets)
         # set the data loaders
-        train_loader = batchify(dataset=trainset,
-                                batch_size=config.batch_size,
-                                shuffle=True)
-        dev_loader = batchify(dataset=devset,
-                              batch_size=config.batch_size)
-        test_loader = batchify(dataset=testset,
-                               batch_size=config.batch_size)
+        train_loader = batchify(trainset,
+                                config.batch_size//config.update_steps,
+                                True)
+        dev_loader = batchify(devset,
+                              config.batch_size//config.update_steps)
+        test_loader = batchify(testset,
+                               config.batch_size//config.update_steps)
         print(f"{'train:':6} {len(trainset):5} sentences in total, "
-              f"{len(train_loader):3} batches provided")
+              f"{len(train_loader):3} batches provided with "
+              f"{len(trainset.buckets)} buckets")
         print(f"{'dev:':6} {len(devset):5} sentences in total, "
-              f"{len(dev_loader):3} batches provided")
+              f"{len(dev_loader):3} batches provided with "
+              f"{len(devset.buckets)} buckets")
         print(f"{'test:':6} {len(testset):5} sentences in total, "
-              f"{len(test_loader):3} batches provided")
+              f"{len(test_loader):3} batches provided with "
+              f"{len(testset.buckets)} buckets")
 
         print("Create the model")
         parser = BiaffineParser(config, vocab.embeddings).to(config.device)
@@ -78,7 +81,7 @@ class Train(object):
             parser = nn.DataParallel(parser)
         print(f"{parser}\n")
 
-        model = Model(vocab, parser)
+        model = Model(config, vocab, parser)
 
         total_time = timedelta()
         best_e, best_metric = 1, AttachmentMethod()
