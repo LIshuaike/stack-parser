@@ -17,11 +17,11 @@ class ScalarMix(nn.Module):
         self.gamma = nn.Parameter(torch.tensor([1.0]))
 
     def extra_repr(self):
-        info = f"n_reprs={self.n_reprs}"
+        s = f"n_reprs={self.n_reprs}"
         if self.do_layer_norm:
-            info += f", do_layer_norm={self.do_layer_norm}"
+            s += f", do_layer_norm={self.do_layer_norm}"
 
-        return info
+        return s
 
     def forward(self, tensors, mask=None):
         normed_weights = self.weights.softmax(dim=0)

@@ -8,18 +8,17 @@ import torch.nn as nn
 
 class Model(object):
 
-    def __init__(self, vocab, parser):
+    def __init__(self, config, vocab, parser):
         super(Model, self).__init__()
 
+        self.config = config
         self.vocab = vocab
         self.parser = parser
 
     def train(self, loader):
         self.parser.train()
 
-        for words, chars, tags, arcs, rels in loader:
-            self.optimizer.zero_grad()
-
+        for i, (words, chars, tags, arcs, rels) in enumerate(loader):
             mask = words.ne(self.vocab.pad_index)
             # ignore the first token of each sentence
             mask[:, 0] = 0
@@ -30,10 +29,14 @@ class Model(object):
 
             loss = self.parser.get_loss(s_tag, s_arc, s_rel,
                                         gold_tags, gold_arcs, gold_rels)
+            loss /= self.config.update_steps
             loss.backward()
-            nn.utils.clip_grad_norm_(self.parser.parameters(), 5.0)
-            self.optimizer.step()
-            self.scheduler.step()
+            if (i + 1) % self.config.update_steps == 0:
+                nn.utils.clip_grad_norm_(self.parser.parameters(),
+                                         self.config.clip)
+                self.optimizer.step()
+                self.scheduler.step()
+                self.optimizer.zero_grad()
 
     @torch.no_grad()
     def evaluate(self, loader):
