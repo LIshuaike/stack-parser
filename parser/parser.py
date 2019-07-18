@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from parser.modules import (CHAR_LSTM, MLP, Biaffine, BiLSTM,
-                            IndependentDropout, ScalarMix, SharedDropout)
+                            IndependentDropout, SharedDropout)
 
 import torch
 import torch.nn as nn
@@ -11,12 +11,12 @@ from torch.nn.utils.rnn import (pack_padded_sequence, pad_packed_sequence,
 
 class BiaffineParser(nn.Module):
 
-    def __init__(self, config, embeddings):
+    def __init__(self, config, embed):
         super(BiaffineParser, self).__init__()
 
         self.config = config
         # the embedding layer
-        self.pretrained = nn.Embedding.from_pretrained(embeddings)
+        self.pretrained = nn.Embedding.from_pretrained(embed)
         self.word_embed = nn.Embedding(num_embeddings=config.n_words,
                                        embedding_dim=config.n_embed)
         # the char-lstm layer
@@ -33,7 +33,6 @@ class BiaffineParser(nn.Module):
                                hidden_size=config.n_lstm_hidden,
                                num_layers=config.n_lstm_layers,
                                dropout=config.lstm_dropout)
-        self.mix = ScalarMix(config.n_lstm_layers)
         self.lstm_dropout = SharedDropout(p=config.lstm_dropout)
 
         # the MLP layers
@@ -96,11 +95,11 @@ class BiaffineParser(nn.Module):
         sorted_lens, indices = torch.sort(lens, descending=True)
         inverse_indices = indices.argsort()
         x = pack_padded_sequence(embed[indices], sorted_lens, True)
-        x = [pad_packed_sequence(i, True)[0] for i in self.tag_lstm(x)]
-        x_tag = self.lstm_dropout(x[-1])[inverse_indices]
-        x_dep = self.lstm_dropout(self.mix(x))[inverse_indices]
-        x_tag = self.mlp_tag(x_tag)
-        x_dep = self.mlp_dep(x_dep)
+        x = self.tag_lstm(x)[-1]
+        x, _ = pad_packed_sequence(x, True)
+        x = self.lstm_dropout(x)[inverse_indices]
+        x_tag = self.mlp_tag(x)
+        x_dep = self.mlp_dep(x)
 
         x = torch.cat((embed, x_dep), dim=-1)
         x = pack_padded_sequence(x[indices], sorted_lens, True)
@@ -127,12 +126,9 @@ class BiaffineParser(nn.Module):
 
     @classmethod
     def load(cls, fname):
-        if torch.cuda.is_available():
-            device = torch.device('cuda')
-        else:
-            device = torch.device('cpu')
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
         state = torch.load(fname, map_location=device)
-        parser = cls(state['config'], state['embeddings'])
+        parser = cls(state['config'], state['embed'])
         parser.load_state_dict(state['state_dict'])
         parser.to(device)
 
@@ -151,7 +147,7 @@ class BiaffineParser(nn.Module):
     def save(self, fname):
         state = {
             'config': self.config,
-            'embeddings': self.pretrained.weight,
+            'embed': self.pretrained.weight,
             'state_dict': self.state_dict()
         }
         torch.save(state, fname)
