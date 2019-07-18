@@ -132,7 +132,7 @@ class Train(object):
               f"{len(dep_testset.buckets)} buckets")
 
         print("Create the model")
-        parser = BiaffineParser(config, vocab.embeddings).to(config.device)
+        parser = BiaffineParser(config, vocab.embed).to(config.device)
         if torch.cuda.device_count() > 1:
             parser = nn.DataParallel(parser)
         print(f"{parser}\n")

@@ -31,10 +31,7 @@ class Model(object):
             s_tag = self.parser(pos_bert, pos_words, pos_chars, False)
             loss = self.criterion(s_tag[mask], pos_tags[mask])
             loss.backward()
-            nn.utils.clip_grad_norm_(self.parser.parameters(), 5.0)
-            self.optimizer.step()
 
-            self.optimizer.zero_grad()
             mask = words.ne(self.vocab.pad_index)
             # ignore the first token of each sentence
             mask[:, 0] = 0
