@@ -26,10 +26,8 @@ class Train(object):
                                help='path to dev file')
         subparser.add_argument('--ftest', default='data/conll09/test.conllx',
                                help='path to test file')
-        subparser.add_argument('--fembed', default='data/giga.words.100.txt',
+        subparser.add_argument('--fembed', default='data/giga.100.txt',
                                help='path to pretrained embedding file')
-        subparser.add_argument('--unk', default='<UNK>',
-                               help='unk token in pretrained embeddings')
         subparser.add_argument('--weight', action='store_true',
                                help='whether to weighted sum the layers')
 
@@ -44,7 +42,7 @@ class Train(object):
             vocab = torch.load(config.vocab)
         else:
             vocab = Vocab.from_corpus(corpus=train, min_freq=2)
-            vocab.read_embeddings(Embedding.load(config.fembed, config.unk))
+            vocab.read_embeddings(Embedding.load(config.fembed))
             torch.save(vocab, config.vocab)
         config.update({
             'n_words': vocab.n_train_words,
