@@ -28,6 +28,8 @@ class Train(object):
                                help='path to test file')
         subparser.add_argument('--fembed', default='data/giga.100.txt',
                                help='path to pretrained embedding file')
+        subparser.add_argument('--weight', action='store_true',
+                               help='whether to weighted sum the layers')
 
         return subparser
 
