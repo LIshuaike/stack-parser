@@ -7,15 +7,15 @@ import torch
 
 
 class Vocab(object):
-    PAD = '<PAD>'
-    UNK = '<UNK>'
+    pad = '<PAD>'
+    unk = '<UNK>'
 
     def __init__(self, words, chars, tags, rels):
         self.pad_index = 0
         self.unk_index = 1
 
-        self.words = [self.PAD, self.UNK] + sorted(words)
-        self.chars = [self.PAD, self.UNK] + sorted(chars)
+        self.words = [self.pad, self.unk] + sorted(words)
+        self.chars = [self.pad, self.unk] + sorted(chars)
         self.tags = sorted(tags)
         self.rels = sorted(rels)
 

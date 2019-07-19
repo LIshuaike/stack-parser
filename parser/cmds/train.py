@@ -26,8 +26,10 @@ class Train(object):
                                help='path to dev file')
         subparser.add_argument('--ftest', default='data/conll09/test.conllx',
                                help='path to test file')
-        subparser.add_argument('--fembed', default='data/giga.100.txt',
+        subparser.add_argument('--fembed', default='data/giga.words.100.txt',
                                help='path to pretrained embedding file')
+        subparser.add_argument('--unk', default='<UNK>',
+                               help='unk token in pretrained embeddings')
         subparser.add_argument('--weight', action='store_true',
                                help='whether to weighted sum the layers')
 
@@ -42,7 +44,7 @@ class Train(object):
             vocab = torch.load(config.vocab)
         else:
             vocab = Vocab.from_corpus(corpus=train, min_freq=2)
-            vocab.read_embeddings(Embedding.load(config.fembed))
+            vocab.read_embeddings(Embedding.load(config.fembed, config.unk))
             torch.save(vocab, config.vocab)
         config.update({
             'n_words': vocab.n_train_words,
@@ -62,10 +64,8 @@ class Train(object):
         train_loader = batchify(trainset,
                                 config.batch_size//config.update_steps,
                                 True)
-        dev_loader = batchify(devset,
-                              config.batch_size)
-        test_loader = batchify(testset,
-                               config.batch_size)
+        dev_loader = batchify(devset, config.batch_size)
+        test_loader = batchify(testset, config.batch_size)
         print(f"{'train:':6} {len(trainset):5} sentences in total, "
               f"{len(train_loader):3} batches provided")
         print(f"{'dev:':6} {len(devset):5} sentences in total, "
@@ -74,9 +74,7 @@ class Train(object):
               f"{len(test_loader):3} batches provided")
 
         print("Create the model")
-        parser = BiaffineParser(config, vocab.embed)
-        if torch.cuda.is_available():
-            parser = parser.cuda()
+        parser = BiaffineParser(config, vocab.embed).to(config.device)
         print(f"{parser}\n")
 
         model = Model(config, vocab, parser)
