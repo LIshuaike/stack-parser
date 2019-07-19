@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from parser.modules import (CHAR_LSTM, MLP, Biaffine, BiLSTM,
-                            IndependentDropout, SharedDropout)
+                            IndependentDropout, ScalarMix, SharedDropout)
 
 import torch
 import torch.nn as nn
@@ -33,6 +33,9 @@ class BiaffineParser(nn.Module):
                                hidden_size=config.n_lstm_hidden,
                                num_layers=config.n_lstm_layers,
                                dropout=config.lstm_dropout)
+        if config.weight:
+            self.tag_mix = ScalarMix(n_layers=config.n_lstm_layers)
+            self.dep_mix = ScalarMix(n_layers=config.n_lstm_layers)
         self.lstm_dropout = SharedDropout(p=config.lstm_dropout)
 
         # the MLP layers
@@ -65,6 +68,7 @@ class BiaffineParser(nn.Module):
                                  n_out=config.n_rels,
                                  bias_x=True,
                                  bias_y=True)
+        self.weight = config.weight
         self.pad_index = config.pad_index
         self.unk_index = config.unk_index
         self.criterion = nn.CrossEntropyLoss()
@@ -95,11 +99,16 @@ class BiaffineParser(nn.Module):
         sorted_lens, indices = torch.sort(lens, descending=True)
         inverse_indices = indices.argsort()
         x = pack_padded_sequence(embed[indices], sorted_lens, True)
-        x = self.tag_lstm(x)[-1]
-        x, _ = pad_packed_sequence(x, True)
-        x = self.lstm_dropout(x)[inverse_indices]
-        x_tag = self.mlp_tag(x)
-        x_dep = self.mlp_dep(x)
+        if self.weight:
+            x = [pad_packed_sequence(i, True)[0] for i in self.tag_lstm(x)]
+            x_tag = self.lstm_dropout(self.tag_mix(x))[inverse_indices]
+            x_dep = self.lstm_dropout(self.dep_mix(x))[inverse_indices]
+        else:
+            x = pad_packed_sequence(self.tag_lstm(x)[-1], True)[0]
+            x = self.lstm_dropout(x)[inverse_indices]
+            x_tag, x_dep = x, x
+        x_tag = self.mlp_tag(x_tag)
+        x_dep = self.mlp_dep(x_dep)
 
         x = torch.cat((embed, x_dep), dim=-1)
         x = pack_padded_sequence(x[indices], sorted_lens, True)
