@@ -32,7 +32,7 @@ class Vocab(object):
         self.n_chars = len(self.chars)
         self.n_tags = len(self.tags)
         self.n_rels = len(self.rels)
-        self.n_train_words = self.n_words
+        self.n_init = self.n_words
 
     def __repr__(self):
         s = f"{self.__class__.__name__}: "
