@@ -38,12 +38,12 @@ class Train(object):
         train = Corpus.load(config.ftrain)
         dev = Corpus.load(config.fdev)
         test = Corpus.load(config.ftest)
-        if os.path.exists(config.vocab):
-            vocab = torch.load(config.vocab)
-        else:
+        if config.preprocess or not os.path.exists(config.vocab):
             vocab = Vocab.from_corpus(corpus=train, min_freq=2)
             vocab.read_embeddings(Embedding.load(config.fembed))
             torch.save(vocab, config.vocab)
+        else:
+            vocab = torch.load(config.vocab)
         config.update({
             'n_words': vocab.n_init,
             'n_chars': vocab.n_chars,
