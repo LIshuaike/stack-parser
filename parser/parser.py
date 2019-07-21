@@ -29,7 +29,7 @@ class BiaffineParser(nn.Module):
                                hidden_size=config.n_lstm_hidden,
                                num_layers=config.n_lstm_layers,
                                dropout=config.lstm_dropout)
-        self.dep_lstm = BiLSTM(input_size=config.n_embed*2+500,
+        self.dep_lstm = BiLSTM(input_size=config.n_embed*2+config.n_mlp_arc,
                                hidden_size=config.n_lstm_hidden,
                                num_layers=config.n_lstm_layers,
                                dropout=config.lstm_dropout)
@@ -143,30 +143,11 @@ class BiaffineParser(nn.Module):
 
         return parser
 
-    @classmethod
-    def load_checkpoint(cls, fname):
-        if torch.cuda.is_available():
-            device = torch.device('cuda')
-        else:
-            device = torch.device('cpu')
-        state = torch.load(fname, map_location=device)
-
-        return state
-
     def save(self, fname):
         state = {
             'config': self.config,
             'embed': self.pretrained.weight,
             'state_dict': self.state_dict()
-        }
-        torch.save(state, fname)
-
-    def save_checkpoint(self, fname, epoch, optimizer, scheduler):
-        state = {
-            'epoch': epoch,
-            'state_dict': self.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            'scheduler_state_dict': scheduler.state_dict()
         }
         torch.save(state, fname)
 

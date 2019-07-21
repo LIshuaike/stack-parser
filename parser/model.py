@@ -29,7 +29,7 @@ class Model(object):
 
             loss = self.parser.get_loss(s_tag, s_arc, s_rel,
                                         gold_tags, gold_arcs, gold_rels)
-            loss /= self.config.update_steps
+            loss = loss / self.config.update_steps
             loss.backward()
             if (i + 1) % self.config.update_steps == 0:
                 nn.utils.clip_grad_norm_(self.parser.parameters(),
