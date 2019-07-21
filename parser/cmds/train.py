@@ -28,6 +28,8 @@ class Train(object):
                                help='path to test file')
         subparser.add_argument('--fembed', default='data/giga.100.txt',
                                help='path to pretrained embedding file')
+        subparser.add_argument('--weight', action='store_true',
+                               help='whether to weighted sum the layers')
 
         return subparser
 
@@ -36,14 +38,14 @@ class Train(object):
         train = Corpus.load(config.ftrain)
         dev = Corpus.load(config.fdev)
         test = Corpus.load(config.ftest)
-        if os.path.exists(config.vocab):
-            vocab = torch.load(config.vocab)
-        else:
+        if config.preprocess or not os.path.exists(config.vocab):
             vocab = Vocab.from_corpus(corpus=train, min_freq=2)
             vocab.read_embeddings(Embedding.load(config.fembed))
             torch.save(vocab, config.vocab)
+        else:
+            vocab = torch.load(config.vocab)
         config.update({
-            'n_words': vocab.n_train_words,
+            'n_words': vocab.n_init,
             'n_chars': vocab.n_chars,
             'n_tags': vocab.n_tags,
             'n_rels': vocab.n_rels,
@@ -57,13 +59,11 @@ class Train(object):
         devset = TextDataset(vocab.numericalize(dev), config.buckets)
         testset = TextDataset(vocab.numericalize(test), config.buckets)
         # set the data loaders
-        train_loader = batchify(dataset=trainset,
-                                batch_size=config.batch_size,
-                                shuffle=True)
-        dev_loader = batchify(dataset=devset,
-                              batch_size=config.batch_size)
-        test_loader = batchify(dataset=testset,
-                               batch_size=config.batch_size)
+        train_loader = batchify(trainset,
+                                config.batch_size//config.update_steps,
+                                True)
+        dev_loader = batchify(devset, config.batch_size)
+        test_loader = batchify(testset, config.batch_size)
         print(f"{'train:':6} {len(trainset):5} sentences in total, "
               f"{len(train_loader):3} batches provided")
         print(f"{'dev:':6} {len(devset):5} sentences in total, "
@@ -72,12 +72,10 @@ class Train(object):
               f"{len(test_loader):3} batches provided")
 
         print("Create the model")
-        parser = BiaffineParser(config, vocab.embeddings)
-        if torch.cuda.is_available():
-            parser = parser.cuda()
+        parser = BiaffineParser(config, vocab.embed).to(config.device)
         print(f"{parser}\n")
 
-        model = Model(vocab, parser)
+        model = Model(config, vocab, parser)
 
         total_time = timedelta()
         best_e, best_metric = 1, AttachmentMethod()
@@ -86,7 +84,7 @@ class Train(object):
                                (config.mu, config.nu),
                                config.epsilon)
         model.scheduler = ExponentialLR(model.optimizer,
-                                        config.decay ** (1 / config.steps))
+                                        config.decay**(1/config.decay_steps))
 
         for epoch in range(1, config.epochs + 1):
             start = datetime.now()
