@@ -99,9 +99,9 @@ class BiaffineParser(nn.Module):
         x_dep = pack_padded_sequence(embed[indices], sorted_lens, True)
         if self.weight:
             x_tag = [pad_packed_sequence(i, True)[0]
-                     for i in self.tag_lstm(embed)]
+                     for i in self.tag_lstm(x_tag)]
             x_dep = [pad_packed_sequence(i, True)[0]
-                     for i in self.dep_lstm(embed)]
+                     for i in self.dep_lstm(x_dep)]
             x_tag = self.lstm_dropout(self.tag_mix(x_tag))[inverse_indices]
             x_dep = self.lstm_dropout(self.dep_mix(x_dep))[inverse_indices]
         else:
