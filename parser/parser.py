@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from parser.modules import (CHAR_LSTM, MLP, Biaffine, BiLSTM,
+from parser.modules import (CHAR_LSTM, MLP, BertEmbedding, Biaffine, BiLSTM,
                             IndependentDropout, ScalarMix, SharedDropout)
 
 import torch
@@ -16,6 +16,8 @@ class BiaffineParser(nn.Module):
 
         self.config = config
         # the embedding layer
+        self.bert_embed = BertEmbedding(path=config.bert_path,
+                                        n_layers=config.n_bert_layers)
         self.pretrained = nn.Embedding.from_pretrained(embed)
         self.word_embed = nn.Embedding(num_embeddings=config.n_words,
                                        embedding_dim=config.n_embed)
@@ -25,14 +27,16 @@ class BiaffineParser(nn.Module):
                                    n_out=config.n_embed)
         self.embed_dropout = IndependentDropout(p=config.embed_dropout)
 
-        self.tag_lstm = BiLSTM(input_size=config.n_embed*2,
+        self.tag_lstm = BiLSTM(input_size=config.n_embed*2+config.n_bert,
                                hidden_size=config.n_lstm_hidden,
                                num_layers=config.n_lstm_layers,
                                dropout=config.lstm_dropout)
-        self.dep_lstm = BiLSTM(input_size=config.n_embed*2+config.n_mlp_arc,
-                               hidden_size=config.n_lstm_hidden,
-                               num_layers=config.n_lstm_layers,
-                               dropout=config.lstm_dropout)
+        self.dep_lstm = BiLSTM(
+            input_size=config.n_embed*2+config.n_bert+config.n_mlp_arc,
+            hidden_size=config.n_lstm_hidden,
+            num_layers=config.n_lstm_layers,
+            dropout=config.lstm_dropout
+        )
         if config.weight:
             self.tag_mix = ScalarMix(n_layers=config.n_lstm_layers)
             self.dep_mix = ScalarMix(n_layers=config.n_lstm_layers)
@@ -73,7 +77,6 @@ class BiaffineParser(nn.Module):
         self.weight = config.weight
         self.pad_index = config.pad_index
         self.unk_index = config.unk_index
-        self.criterion = nn.CrossEntropyLoss()
 
         self.reset_parameters()
 
@@ -84,7 +87,7 @@ class BiaffineParser(nn.Module):
         nn.init.zeros_(self.ffn_pos_tag.bias)
         nn.init.zeros_(self.ffn_dep_tag.bias)
 
-    def forward(self, words, chars, dep=True):
+    def forward(self, bert, words, chars, dep=True):
         # get the mask and lengths of given batch
         mask = words.ne(self.pad_index)
         lens = mask.sum(dim=1)
@@ -94,11 +97,13 @@ class BiaffineParser(nn.Module):
 
         # get outputs from embedding layers
         word_embed = self.pretrained(words) + self.word_embed(ext_words)
+        word_embed = word_embed[:, :max(lens)]
         char_embed = self.char_lstm(chars[mask])
         char_embed = pad_sequence(torch.split(char_embed, lens.tolist()), True)
-        word_embed, char_embed = self.embed_dropout(word_embed, char_embed)
+        bert_embed = self.bert_embed(*bert)
+        embeds = self.embed_dropout(word_embed, char_embed, bert_embed)
         # concatenate the word and char representations
-        embed = torch.cat((word_embed, char_embed), dim=-1)
+        embed = torch.cat(embeds, dim=-1)
 
         sorted_lens, indices = torch.sort(lens, descending=True)
         inverse_indices = indices.argsort()
@@ -146,10 +151,7 @@ class BiaffineParser(nn.Module):
 
     @classmethod
     def load(cls, fname):
-        if torch.cuda.is_available():
-            device = torch.device('cuda')
-        else:
-            device = torch.device('cpu')
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
         state = torch.load(fname, map_location=device)
         parser = cls(state['config'], state['embed'])
         parser.load_state_dict(state['state_dict'])
@@ -159,10 +161,7 @@ class BiaffineParser(nn.Module):
 
     @classmethod
     def load_checkpoint(cls, fname):
-        if torch.cuda.is_available():
-            device = torch.device('cuda')
-        else:
-            device = torch.device('cpu')
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
         state = torch.load(fname, map_location=device)
 
         return state
@@ -183,19 +182,3 @@ class BiaffineParser(nn.Module):
             'scheduler_state_dict': scheduler.state_dict()
         }
         torch.save(state, fname)
-
-    def get_loss(self, s_tag, s_arc, s_rel, gold_tags, gold_arcs, gold_rels):
-        s_rel = s_rel[torch.arange(len(s_rel)), gold_arcs]
-
-        tag_loss = self.criterion(s_tag, gold_tags)
-        arc_loss = self.criterion(s_arc, gold_arcs)
-        rel_loss = self.criterion(s_rel, gold_rels)
-        loss = tag_loss + arc_loss + rel_loss
-
-        return loss
-
-    def decode(self, s_arc, s_rel):
-        pred_arcs = s_arc.argmax(dim=-1)
-        pred_rels = s_rel[torch.arange(len(s_rel)), pred_arcs].argmax(dim=-1)
-
-        return pred_arcs, pred_rels

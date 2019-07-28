@@ -8,6 +8,7 @@ from parser.utils import Corpus, Embedding, Vocab
 from parser.utils.data import TextDataset, batchify
 
 import torch
+import torch.nn as nn
 from torch.optim import Adam
 from torch.optim.lr_scheduler import ExponentialLR
 
@@ -18,10 +19,6 @@ class Train(object):
         subparser = parser.add_parser(
             name, help='Train a model.'
         )
-        subparser.add_argument('--pos', default=0, type=int,
-                               help='max num of sentences in fpos to use')
-        subparser.add_argument('--pos-batch-size', default=5000, type=int,
-                               help='num of tokens per training update')
         subparser.add_argument('--patience', default=100, type=int,
                                help='patience for early stop')
         subparser.add_argument('--buckets', default=64, type=int,
@@ -48,14 +45,17 @@ class Train(object):
     def __call__(self, config):
         if config.preprocess:
             print("Preprocess the corpus")
-            pos_train = Corpus.load(config.fptrain, [1, 4], config.pos)
-            dep_train = Corpus.load(config.ftrain)
-            pos_dev = Corpus.load(config.fpdev, [1, 4])
-            dep_dev = Corpus.load(config.fdev)
-            pos_test = Corpus.load(config.fptest, [1, 4])
-            dep_test = Corpus.load(config.ftest)
+            pos_train = Corpus.load(config.fptrain, [1, 4], config.max_len)
+            dep_train = Corpus.load(config.ftrain, max_len=config.max_len)
+            pos_dev = Corpus.load(config.fpdev, [1, 4], config.max_len)
+            dep_dev = Corpus.load(config.fdev, max_len=config.max_len)
+            pos_test = Corpus.load(config.fptest, [1, 4], config.max_len)
+            dep_test = Corpus.load(config.ftest, max_len=config.max_len)
             print("Create the vocab")
-            vocab = Vocab.from_corpora(pos_train, dep_train, 2)
+            vocab = Vocab.from_corpora(config.bert_vocab,
+                                       pos_train,
+                                       dep_train,
+                                       2)
             vocab.read_embeddings(Embedding.load(config.fembed))
             print("Load the dataset")
             pos_trainset = TextDataset(vocab.numericalize(pos_train, False),
@@ -125,6 +125,8 @@ class Train(object):
 
         print("Create the model")
         parser = BiaffineParser(config, vocab.embed).to(config.device)
+        if torch.cuda.device_count() > 1:
+            parser = nn.DataParallel(parser)
         print(f"{parser}\n")
 
         model = Model(config, vocab, parser)
@@ -157,7 +159,10 @@ class Train(object):
             # save the model if it is the best so far
             if dev_m > best_metric and epoch > config.patience:
                 best_e, best_metric = epoch, dev_m
-                model.parser.save(config.model)
+                if hasattr(model.parser, 'module'):
+                    model.parser.module.save(config.model)
+                else:
+                    model.parser.save(config.model)
                 print(f"{t}s elapsed (saved)\n")
             else:
                 print(f"{t}s elapsed\n")
