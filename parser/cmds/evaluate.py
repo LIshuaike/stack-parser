@@ -17,7 +17,7 @@ class Evaluate(object):
                                help='batch size')
         subparser.add_argument('--buckets', default=64, type=int,
                                help='max num of buckets to use')
-        subparser.add_argument('--fdata', default='data/test.gold.conllx',
+        subparser.add_argument('--fdata', default='data/conll09/test.conllx',
                                help='path to dataset')
 
         return subparser
@@ -26,14 +26,14 @@ class Evaluate(object):
         print("Load the model")
         vocab = torch.load(config.vocab)
         parser = BiaffineParser.load(config.model)
-        model = Model(vocab, parser)
+        model = Model(config, vocab, parser)
 
         print("Load the dataset")
-        corpus = Corpus.load(config.fdata)
+        corpus = Corpus.load(config.fdata, max_len=config.max_len)
         dataset = TextDataset(vocab.numericalize(corpus), config.buckets)
         # set the data loader
         loader = batchify(dataset, config.batch_size)
 
         print("Evaluate the dataset")
-        loss, metric_t, metric_p = model.evaluate(loader)
+        _, loss, _, metric_t, metric_p = model.evaluate(None, loader)
         print(f"Loss: {loss:.4f} {metric_t}, {metric_p}")

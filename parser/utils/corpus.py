@@ -32,19 +32,32 @@ class Corpus(object):
 
     @property
     def words(self):
+        if not self.sentences[0].FORM:
+            raise AttributeError
         return [list(sentence.FORM) for sentence in self]
 
     @property
     def tags(self):
+        if not self.sentences[0].POS:
+            raise AttributeError
         return [list(sentence.POS) for sentence in self]
 
     @property
     def heads(self):
+        if not self.sentences[0].HEAD:
+            raise AttributeError
         return [list(map(int, sentence.HEAD)) for sentence in self]
 
     @property
     def rels(self):
+        if not self.sentences[0].DEPREL:
+            raise AttributeError
         return [list(sentence.DEPREL) for sentence in self]
+
+    @tags.setter
+    def tags(self, sequences):
+        self.sentences = [sentence._replace(CPOS=sequence)
+                          for sentence, sequence in zip(self, sequences)]
 
     @heads.setter
     def heads(self, sequences):

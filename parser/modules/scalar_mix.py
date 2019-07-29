@@ -6,11 +6,10 @@ import torch.nn as nn
 
 class ScalarMix(nn.Module):
 
-    def __init__(self, n_layers, do_layer_norm=False):
+    def __init__(self, n_layers):
         super(ScalarMix, self).__init__()
 
         self.n_layers = n_layers
-        self.do_layer_norm = do_layer_norm
 
         self.weights = nn.Parameter(torch.zeros(n_layers))
         self.gamma = nn.Parameter(torch.tensor([1.0]))
@@ -19,17 +18,10 @@ class ScalarMix(nn.Module):
                                               for _ in range(n_layers)])
 
     def extra_repr(self):
-        info = f"n_layers={self.n_layers}"
-        if self.do_layer_norm:
-            info += f", do_layer_norm={self.do_layer_norm}"
+        return f"n_layers={self.n_layers}"
 
-        return info
-
-    def forward(self, tensors, mask=None):
+    def forward(self, tensors):
         normed_weights = self.weights.softmax(dim=0)
-
-        if self.do_layer_norm:
-            tensors = [self.layer_norms[i](h) for i, h in enumerate(tensors)]
         weighted_sum = sum(w * h for w, h in zip(normed_weights, tensors))
 
         return self.gamma * weighted_sum
