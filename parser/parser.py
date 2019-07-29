@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from parser.modules import (CHAR_LSTM, MLP, BertEmbedding, Biaffine, BiLSTM,
+from parser.modules import (MLP, BertEmbedding, Biaffine, BiLSTM,
                             IndependentDropout, ScalarMix, SharedDropout)
 
 import torch
@@ -21,18 +21,14 @@ class BiaffineParser(nn.Module):
         self.pretrained = nn.Embedding.from_pretrained(embed)
         self.word_embed = nn.Embedding(num_embeddings=config.n_words,
                                        embedding_dim=config.n_embed)
-        # the char-lstm layer
-        self.char_lstm = CHAR_LSTM(n_chars=config.n_chars,
-                                   n_embed=config.n_char_embed,
-                                   n_out=config.n_embed)
         self.embed_dropout = IndependentDropout(p=config.embed_dropout)
 
-        self.tag_lstm = BiLSTM(input_size=config.n_embed*2+config.n_bert,
+        self.tag_lstm = BiLSTM(input_size=config.n_embed+config.n_bert,
                                hidden_size=config.n_lstm_hidden,
                                num_layers=config.n_lstm_layers,
                                dropout=config.lstm_dropout)
         self.dep_lstm = BiLSTM(
-            input_size=config.n_embed*2+config.n_bert+config.n_mlp_arc,
+            input_size=config.n_embed+config.n_bert+config.n_mlp_arc,
             hidden_size=config.n_lstm_hidden,
             num_layers=config.n_lstm_layers,
             dropout=config.lstm_dropout
@@ -87,7 +83,7 @@ class BiaffineParser(nn.Module):
         nn.init.zeros_(self.ffn_pos_tag.bias)
         nn.init.zeros_(self.ffn_dep_tag.bias)
 
-    def forward(self, bert, words, chars, dep=True):
+    def forward(self, bert, words, dep=True):
         # get the mask and lengths of given batch
         mask = words.ne(self.pad_index)
         lens = mask.sum(dim=1)
@@ -98,11 +94,8 @@ class BiaffineParser(nn.Module):
         # get outputs from embedding layers
         word_embed = self.pretrained(words) + self.word_embed(ext_words)
         word_embed = word_embed[:, :max(lens)]
-        char_embed = self.char_lstm(chars[mask])
-        char_embed = pad_sequence(torch.split(char_embed, lens.tolist()), True)
         bert_embed = self.bert_embed(*bert)
-        embeds = self.embed_dropout(word_embed, char_embed, bert_embed)
-        # concatenate the word and char representations
+        embeds = self.embed_dropout(word_embed, bert_embed)
         embed = torch.cat(embeds, dim=-1)
 
         sorted_lens, indices = torch.sort(lens, descending=True)
