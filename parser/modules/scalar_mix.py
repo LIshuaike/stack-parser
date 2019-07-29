@@ -13,9 +13,6 @@ class ScalarMix(nn.Module):
 
         self.weights = nn.Parameter(torch.zeros(n_layers))
         self.gamma = nn.Parameter(torch.tensor([1.0]))
-        if self.do_layer_norm:
-            self.layer_norms = nn.ModuleList([nn.LayerNorm(800)
-                                              for _ in range(n_layers)])
 
     def extra_repr(self):
         return f"n_layers={self.n_layers}"

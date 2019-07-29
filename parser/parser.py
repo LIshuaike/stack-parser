@@ -100,16 +100,12 @@ class BiaffineParser(nn.Module):
         if self.weight:
             x = [pad_packed_sequence(i, True)[0] for i in self.tag_lstm(x)]
             x_tag = self.lstm_dropout(self.tag_mix(x))[inverse_indices]
+            x_dep = self.lstm_dropout(self.dep_mix(x))[inverse_indices]
         else:
             x = pad_packed_sequence(self.tag_lstm(x)[-1], True)[0]
             x = self.lstm_dropout(x)[inverse_indices]
-            x_tag = x
+            x_tag, x_dep = x, x
         x_tag = self.mlp_tag(x_tag)
-
-        if self.weight:
-            x_dep = self.lstm_dropout(self.dep_mix(x))[inverse_indices]
-        else:
-            x_dep = x
         x_dep = self.mlp_dep(x_dep)
 
         x = torch.cat((embed, x_dep), dim=-1)
