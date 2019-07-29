@@ -19,6 +19,8 @@ class Train(object):
         subparser = parser.add_parser(
             name, help='Train a model.'
         )
+        subparser.add_argument('--pos-batch-size', default=5000, type=int,
+                               help='num of tokens per training update')
         subparser.add_argument('--patience', default=100, type=int,
                                help='patience for early stop')
         subparser.add_argument('--buckets', default=64, type=int,
