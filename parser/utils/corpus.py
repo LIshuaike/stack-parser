@@ -2,8 +2,6 @@
 
 from collections import namedtuple
 
-import torch
-
 
 Sentence = namedtuple(typename='Sentence',
                       field_names=['ID', 'FORM', 'LEMMA', 'CPOS',

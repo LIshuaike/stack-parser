@@ -101,7 +101,7 @@ class Vocab(object):
         mask = [torch.ones(len(tokens)) for tokens in subwords]
         start_mask = [~mask[i].byte().index_fill_(0, starts[i], 0)
                       for i in range(len(mask))]
-        bert = [(i, j, k) for i, j, k in zip(subwords, mask, start_mask)]
+        bert = list(zip(subwords, mask, start_mask))
 
         words = [self.word2id([self.bos] + seq) for seq in corpus.words]
         if not training:

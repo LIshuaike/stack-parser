@@ -28,8 +28,8 @@ class Model(object):
             mask = pos_words.ne(self.vocab.pad_index)
             # ignore the first token of each sentence
             mask[:, 0] = 0
-            s_tag = self.parser(pos_words, False)
-            loss = self.parser.criterion(s_tag[mask], pos_tags[mask])
+            s_tag = self.parser(pos_bert, pos_words, False)
+            loss = self.criterion(s_tag[mask], pos_tags[mask])
             loss = loss / self.config.update_steps
             loss.backward()
 
@@ -41,8 +41,8 @@ class Model(object):
             gold_tags = tags[mask]
             gold_arcs, gold_rels = arcs[mask], rels[mask]
 
-            loss = self.parser.get_loss(s_tag, s_arc, s_rel,
-                                        gold_tags, gold_arcs, gold_rels)
+            loss = self.get_loss(s_tag, s_arc, s_rel,
+                                 gold_tags, gold_arcs, gold_rels)
             loss = loss / self.config.update_steps
             loss.backward()
             if (i + 1) % self.config.update_steps == 0:
