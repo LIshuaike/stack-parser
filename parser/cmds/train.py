@@ -20,6 +20,8 @@ class Train(object):
         )
         subparser.add_argument('--buckets', default=64, type=int,
                                help='max num of buckets to use')
+        subparser.add_argument('--punct', default=True, type=bool,
+                               help='whether to include punctuation')
         subparser.add_argument('--ftrain', default='data/conll09/train.conllx',
                                help='path to train file')
         subparser.add_argument('--fdev', default='data/conll09/dev.conllx',
@@ -28,6 +30,8 @@ class Train(object):
                                help='path to test file')
         subparser.add_argument('--fembed', default='data/giga.100.txt',
                                help='path to pretrained embedding file')
+        subparser.add_argument('--unk', default=None,
+                               help='unk token in pretrained embeddings')
         subparser.add_argument('--weight', action='store_true',
                                help='whether to weighted sum the layers')
 
@@ -40,7 +44,7 @@ class Train(object):
         test = Corpus.load(config.ftest)
         if config.preprocess or not os.path.exists(config.vocab):
             vocab = Vocab.from_corpus(corpus=train, min_freq=2)
-            vocab.read_embeddings(Embedding.load(config.fembed))
+            vocab.read_embeddings(Embedding.load(config.fembed, config.unk))
             torch.save(vocab, config.vocab)
         else:
             vocab = torch.load(config.vocab)
@@ -92,11 +96,14 @@ class Train(object):
             model.train(train_loader)
 
             print(f"Epoch {epoch} / {config.epochs}:")
-            loss, metric_t, metric_p = model.evaluate(train_loader)
+            loss, metric_t, metric_p = model.evaluate(train_loader,
+                                                      config.punct)
             print(f"{'train:':6} Loss: {loss:.4f} {metric_t} {metric_p}")
-            loss, dev_metric_t, dev_metric_p = model.evaluate(dev_loader)
+            loss, dev_metric_t, dev_metric_p = model.evaluate(dev_loader,
+                                                              config.punct)
             print(f"{'dev:':6} Loss: {loss:.4f} {dev_metric_t} {dev_metric_p}")
-            loss, metric_t, metric_p = model.evaluate(test_loader)
+            loss, metric_t, metric_p = model.evaluate(test_loader,
+                                                      config.punct)
             print(f"{'test:':6} Loss: {loss:.4f} {metric_t} {metric_p}")
 
             t = datetime.now() - start
@@ -111,7 +118,7 @@ class Train(object):
             if epoch - best_e >= config.patience:
                 break
         model.parser = BiaffineParser.load(config.model)
-        loss, metric_t, metric_p = model.evaluate(test_loader)
+        loss, metric_t, metric_p = model.evaluate(test_loader, config.punct)
 
         print(f"max score of dev is {best_metric.score:.2%} at epoch {best_e}")
         print(f"the score of test at epoch {best_e} is {metric_p.score:.2%}")

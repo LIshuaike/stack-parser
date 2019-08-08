@@ -132,10 +132,7 @@ class BiaffineParser(nn.Module):
 
     @classmethod
     def load(cls, fname):
-        if torch.cuda.is_available():
-            device = torch.device('cuda')
-        else:
-            device = torch.device('cpu')
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
         state = torch.load(fname, map_location=device)
         parser = cls(state['config'], state['embed'])
         parser.load_state_dict(state['state_dict'])
@@ -143,27 +140,11 @@ class BiaffineParser(nn.Module):
 
         return parser
 
-    @classmethod
-    def load_checkpoint(cls, fname):
-        device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        state = torch.load(fname, map_location=device)
-
-        return state
-
     def save(self, fname):
         state = {
             'config': self.config,
             'embed': self.pretrained.weight,
             'state_dict': self.state_dict()
-        }
-        torch.save(state, fname)
-
-    def save_checkpoint(self, fname, epoch, optimizer, scheduler):
-        state = {
-            'epoch': epoch,
-            'state_dict': self.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            'scheduler_state_dict': scheduler.state_dict()
         }
         torch.save(state, fname)
 

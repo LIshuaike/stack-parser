@@ -39,7 +39,7 @@ class Model(object):
                 self.optimizer.zero_grad()
 
     @torch.no_grad()
-    def evaluate(self, loader):
+    def evaluate(self, loader, punct=True):
         self.parser.eval()
 
         loss, metric_t, metric_p = 0, AccuracyMethod(), AttachmentMethod()
@@ -48,6 +48,10 @@ class Model(object):
             mask = words.ne(self.vocab.pad_index)
             # ignore the first token of each sentence
             mask[:, 0] = 0
+            # ignore all punctuation if specified
+            if not punct:
+                puncts = words.new_tensor(self.vocab.puncts)
+                mask &= words.unsqueeze(-1).ne(puncts).all(-1)
             s_tag, s_arc, s_rel = self.parser(words, chars)
             s_tag, s_arc, s_rel = s_tag[mask], s_arc[mask], s_rel[mask]
             gold_tags, pred_tags = tags[mask], s_tag.argmax(dim=-1)
