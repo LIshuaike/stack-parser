@@ -114,6 +114,6 @@ class Train(object):
         loss, metric_t, metric_p = model.evaluate(test_loader)
 
         print(f"max score of dev is {best_metric.score:.2%} at epoch {best_e}")
-        print(f"the score of test at epoch {best_e} is {metric_p.score:.2%}")
+        print(f"the score of test at epoch {best_e} is {metric_t.score:.2%}")
         print(f"average time of each epoch is {total_time / epoch}s")
         print(f"{total_time}s elapsed")
