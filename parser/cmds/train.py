@@ -20,8 +20,8 @@ class Train(object):
         )
         subparser.add_argument('--buckets', default=64, type=int,
                                help='max num of buckets to use')
-        subparser.add_argument('--punct', default=True, type=bool,
-                               help='whether to include punctuation')
+        subparser.add_argument('--nopunct', dest='punct', action='store_false',
+                               help='whether to exclude punctuation')
         subparser.add_argument('--ftrain', default='data/conll09/train.conllx',
                                help='path to train file')
         subparser.add_argument('--fdev', default='data/conll09/dev.conllx',
@@ -39,6 +39,7 @@ class Train(object):
 
     def __call__(self, config):
         print("Preprocess the data")
+        print(config.punct, type(config.punct))
         train = Corpus.load(config.ftrain)
         dev = Corpus.load(config.fdev)
         test = Corpus.load(config.ftest)
