@@ -152,14 +152,7 @@ class BiaffineParser(nn.Module):
         torch.save(state, fname)
 
     def get_loss(self, s_tag, s_arc, s_rel, gold_tags, gold_arcs, gold_rels):
-        s_rel = s_rel[torch.arange(len(s_rel)), gold_arcs]
-
-        tag_loss = self.criterion(s_tag, gold_tags)
-        arc_loss = self.criterion(s_arc, gold_arcs)
-        rel_loss = self.criterion(s_rel, gold_rels)
-        loss = tag_loss + arc_loss + rel_loss
-
-        return loss
+        return self.criterion(s_tag, gold_tags)
 
     def decode(self, s_arc, s_rel):
         pred_arcs = s_arc.argmax(dim=-1)

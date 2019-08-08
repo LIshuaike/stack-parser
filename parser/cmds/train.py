@@ -101,8 +101,8 @@ class Train(object):
 
             t = datetime.now() - start
             # save the model if it is the best so far
-            if dev_metric_p > best_metric and epoch > config.patience:
-                best_e, best_metric = epoch, dev_metric_p
+            if dev_metric_t > best_metric and epoch > config.patience:
+                best_e, best_metric = epoch, dev_metric_t
                 model.parser.save(config.model)
                 print(f"{t}s elapsed (saved)\n")
             else:
