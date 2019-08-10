@@ -15,19 +15,20 @@ class BiaffineParser(nn.Module):
 
         self.config = config
         # the embedding layer
-        self.bert_embed = BertEmbedding(path=config.bert_path,
-                                        n_layers=config.n_bert_layers)
         self.pretrained = nn.Embedding.from_pretrained(embed)
         self.word_embed = nn.Embedding(num_embeddings=config.n_words,
                                        embedding_dim=config.n_embed)
+        self.bert_embed = BertEmbedding(path=config.bert_path,
+                                        n_layers=config.n_bert_layers,
+                                        n_out=config.n_embed)
         self.embed_dropout = IndependentDropout(p=config.embed_dropout)
 
-        self.tag_lstm = BiLSTM(input_size=config.n_embed+config.n_bert,
+        self.tag_lstm = BiLSTM(input_size=config.n_embed*2,
                                hidden_size=config.n_lstm_hidden,
                                num_layers=config.n_lstm_layers,
                                dropout=config.lstm_dropout)
         self.dep_lstm = BiLSTM(
-            input_size=config.n_embed+config.n_bert+config.n_mlp_arc,
+            input_size=config.n_embed*2+config.n_mlp_arc,
             hidden_size=config.n_lstm_hidden,
             num_layers=config.n_lstm_layers,
             dropout=config.lstm_dropout
