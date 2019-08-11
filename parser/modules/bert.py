@@ -41,8 +41,6 @@ class BertEmbedding(nn.Module):
         nn.init.orthogonal_(self.projection.weight)
 
     def forward(self, subwords, mask, start_mask):
-        if self.freeze:
-            self.model.eval()
         lens = start_mask.sum(1)
         bert, _ = self.model(subwords, attention_mask=mask)
         bert = bert[-self.n_layers:]
