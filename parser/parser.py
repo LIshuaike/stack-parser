@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from parser.modules import (CHAR_LSTM, MLP, Biaffine, BiLSTM,
-                            IndependentDropout, ScalarMix, SharedDropout)
+                            IndependentDropout, SharedDropout)
 
 import torch
 import torch.nn as nn
@@ -11,12 +11,12 @@ from torch.nn.utils.rnn import (pack_padded_sequence, pad_packed_sequence,
 
 class BiaffineParser(nn.Module):
 
-    def __init__(self, config, embeddings):
+    def __init__(self, config, embed):
         super(BiaffineParser, self).__init__()
 
         self.config = config
         # the embedding layer
-        self.pretrained = nn.Embedding.from_pretrained(embeddings)
+        self.pretrained = nn.Embedding.from_pretrained(embed)
         self.word_embed = nn.Embedding(num_embeddings=config.n_words,
                                        embedding_dim=config.n_embed)
         self.tag_embed = nn.Embedding(num_embeddings=config.n_tags,
@@ -35,7 +35,6 @@ class BiaffineParser(nn.Module):
                                hidden_size=config.n_lstm_hidden,
                                num_layers=config.n_lstm_layers,
                                dropout=config.lstm_dropout)
-        self.tag_mix = ScalarMix(config.n_lstm_layers)
         self.lstm_dropout = SharedDropout(p=config.lstm_dropout)
 
         # the MLP layers
@@ -126,41 +125,19 @@ class BiaffineParser(nn.Module):
 
     @classmethod
     def load(cls, fname):
-        if torch.cuda.is_available():
-            device = torch.device('cuda')
-        else:
-            device = torch.device('cpu')
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
         state = torch.load(fname, map_location=device)
-        parser = cls(state['config'], state['embeddings'])
+        parser = cls(state['config'], state['embed'])
         parser.load_state_dict(state['state_dict'])
         parser.to(device)
 
         return parser
 
-    @classmethod
-    def load_checkpoint(cls, fname):
-        if torch.cuda.is_available():
-            device = torch.device('cuda')
-        else:
-            device = torch.device('cpu')
-        state = torch.load(fname, map_location=device)
-
-        return state
-
     def save(self, fname):
         state = {
             'config': self.config,
-            'embeddings': self.pretrained.weight,
+            'embed': self.pretrained.weight,
             'state_dict': self.state_dict()
-        }
-        torch.save(state, fname)
-
-    def save_checkpoint(self, fname, epoch, optimizer, scheduler):
-        state = {
-            'epoch': epoch,
-            'state_dict': self.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            'scheduler_state_dict': scheduler.state_dict()
         }
         torch.save(state, fname)
 
