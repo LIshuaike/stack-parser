@@ -28,6 +28,8 @@ class Train(object):
                                help='path to test file')
         subparser.add_argument('--fembed', default='data/giga.100.txt',
                                help='path to pretrained embedding file')
+        subparser.add_argument('--unk', default=None,
+                               help='unk token in pretrained embeddings')
         subparser.add_argument('--weight', action='store_true',
                                help='whether to weighted sum the layers')
 
@@ -40,7 +42,7 @@ class Train(object):
         test = Corpus.load(config.ftest)
         if config.preprocess or not os.path.exists(config.vocab):
             vocab = Vocab.from_corpus(corpus=train, min_freq=2)
-            vocab.read_embeddings(Embedding.load(config.fembed))
+            vocab.read_embeddings(Embedding.load(config.fembed, config.unk))
             torch.save(vocab, config.vocab)
         else:
             vocab = torch.load(config.vocab)
