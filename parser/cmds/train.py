@@ -48,7 +48,6 @@ class Train(object):
             'n_words': vocab.n_init,
             'n_chars': vocab.n_chars,
             'n_tags': vocab.n_tags,
-            'n_rels': vocab.n_rels,
             'pad_index': vocab.pad_index,
             'unk_index': vocab.unk_index
         })
@@ -92,12 +91,10 @@ class Train(object):
             model.train(train_loader)
 
             print(f"Epoch {epoch} / {config.epochs}:")
-            loss, metric_t, metric_p = model.evaluate(train_loader)
-            print(f"{'train:':6} Loss: {loss:.4f} {metric_t} {metric_p}")
-            loss, dev_metric_t, dev_metric_p = model.evaluate(dev_loader)
-            print(f"{'dev:':6} Loss: {loss:.4f} {dev_metric_t} {dev_metric_p}")
-            loss, metric_t, metric_p = model.evaluate(test_loader)
-            print(f"{'test:':6} Loss: {loss:.4f} {metric_t} {metric_p}")
+            loss, dev_metric_t = model.evaluate(dev_loader)
+            print(f"{'dev:':6} Loss: {loss:.4f} {dev_metric_t}")
+            loss, metric_t = model.evaluate(test_loader)
+            print(f"{'test:':6} Loss: {loss:.4f} {metric_t}")
 
             t = datetime.now() - start
             # save the model if it is the best so far
@@ -111,7 +108,7 @@ class Train(object):
             if epoch - best_e >= config.patience:
                 break
         model.parser = BiaffineParser.load(config.model)
-        loss, metric_t, metric_p = model.evaluate(test_loader)
+        loss, metric_t = model.evaluate(test_loader)
 
         print(f"max score of dev is {best_metric.score:.2%} at epoch {best_e}")
         print(f"the score of test at epoch {best_e} is {metric_t.score:.2%}")

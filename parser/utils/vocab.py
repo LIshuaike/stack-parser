@@ -10,19 +10,17 @@ class Vocab(object):
     pad = '<pad>'
     unk = '<unk>'
 
-    def __init__(self, words, chars, tags, rels):
+    def __init__(self, words, chars, tags):
         self.pad_index = 0
         self.unk_index = 1
 
         self.words = [self.pad, self.unk] + sorted(words)
         self.chars = [self.pad, self.unk] + sorted(chars)
         self.tags = sorted(tags)
-        self.rels = sorted(rels)
 
         self.word_dict = {word: i for i, word in enumerate(self.words)}
         self.char_dict = {char: i for i, char in enumerate(self.chars)}
         self.tag_dict = {tag: i for i, tag in enumerate(self.tags)}
-        self.rel_dict = {rel: i for i, rel in enumerate(self.rels)}
 
         # ids of punctuation that appear in words
         self.puncts = sorted(i for word, i in self.word_dict.items()
@@ -31,15 +29,13 @@ class Vocab(object):
         self.n_words = len(self.words)
         self.n_chars = len(self.chars)
         self.n_tags = len(self.tags)
-        self.n_rels = len(self.rels)
         self.n_init = self.n_words
 
     def __repr__(self):
         s = f"{self.__class__.__name__}: "
         s += f"{self.n_words} words, "
         s += f"{self.n_chars} chars, "
-        s += f"{self.n_tags} tags, "
-        s += f"{self.n_rels} rels"
+        s += f"{self.n_tags} tags"
 
         return s
 
@@ -60,15 +56,8 @@ class Vocab(object):
         return torch.tensor([self.tag_dict.get(tag, 0)
                              for tag in sequence])
 
-    def rel2id(self, sequence):
-        return torch.tensor([self.rel_dict.get(rel, 0)
-                             for rel in sequence])
-
     def id2tag(self, ids):
         return [self.tags[i] for i in ids]
-
-    def id2rel(self, ids):
-        return [self.rels[i] for i in ids]
 
     def read_embeddings(self, embed, smooth=True):
         words = [word.lower() for word in embed.tokens]
@@ -100,10 +89,8 @@ class Vocab(object):
         if not training:
             return words, chars
         tags = [self.tag2id(seq) for seq in corpus.tags]
-        arcs = [torch.tensor(seq) for seq in corpus.heads]
-        rels = [self.rel2id(seq) for seq in corpus.rels]
 
-        return words, chars, tags, arcs, rels
+        return words, chars, tags
 
     @classmethod
     def from_corpus(cls, corpus, min_freq=1):
@@ -111,8 +98,7 @@ class Vocab(object):
         words = list(word for word, freq in words.items() if freq >= min_freq)
         chars = list({char for seq in corpus.words for char in ''.join(seq)})
         tags = list({tag for seq in corpus.tags for tag in seq})
-        rels = list({rel for seq in corpus.rels for rel in seq})
-        vocab = cls(words, chars, tags, rels)
+        vocab = cls(words, chars, tags)
 
         return vocab
 

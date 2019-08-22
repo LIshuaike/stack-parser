@@ -35,7 +35,7 @@ class Predict(object):
         loader = batchify(dataset, config.batch_size)
 
         print("Make predictions on the dataset")
-        corpus.heads, corpus.rels = model.predict(loader)
+        corpus.tags = model.predict(loader)
 
         print(f"Save the predicted result to {config.fpred}")
         corpus.save(config.fpred)

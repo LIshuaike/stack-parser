@@ -43,18 +43,9 @@ class Corpus(object):
     def heads(self):
         return [[0] + list(map(int, sentence.HEAD)) for sentence in self]
 
-    @property
-    def rels(self):
-        return [[self.root] + list(sentence.DEPREL) for sentence in self]
-
-    @heads.setter
-    def heads(self, sequences):
-        self.sentences = [sentence._replace(HEAD=sequence)
-                          for sentence, sequence in zip(self, sequences)]
-
-    @rels.setter
-    def rels(self, sequences):
-        self.sentences = [sentence._replace(DEPREL=sequence)
+    @tags.setter
+    def tags(self, sequences):
+        self.sentences = [sentence._replace(CPOS=sequence)
                           for sentence, sequence in zip(self, sequences)]
 
     @classmethod
