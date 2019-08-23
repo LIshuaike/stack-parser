@@ -19,7 +19,7 @@ class Evaluate(object):
                                help='max num of buckets to use')
         subparser.add_argument('--punct', default=True, type=bool,
                                help='whether to include punctuation')
-        subparser.add_argument('--fdata', default='data/test.gold.conllx',
+        subparser.add_argument('--fdata', default='data/conll09/test.conllx',
                                help='path to dataset')
 
         return subparser
