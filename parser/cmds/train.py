@@ -39,7 +39,6 @@ class Train(object):
 
     def __call__(self, config):
         print("Preprocess the data")
-        print(config.punct, type(config.punct))
         train = Corpus.load(config.ftrain)
         dev = Corpus.load(config.fdev)
         test = Corpus.load(config.ftest)
