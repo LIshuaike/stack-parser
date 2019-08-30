@@ -32,8 +32,6 @@ class Train(object):
                                help='path to pretrained embedding file')
         subparser.add_argument('--unk', default=None,
                                help='unk token in pretrained embeddings')
-        subparser.add_argument('--weight', action='store_true',
-                               help='whether to weighted sum the layers')
 
         return subparser
 
