@@ -28,6 +28,17 @@ class BiLSTM(nn.Module):
 
         self.reset_parameters()
 
+    def __repr__(self):
+        s = self.__class__.__name__ + '('
+        s += f"{self.input_size}, {self.hidden_size}"
+        if self.num_layers > 1:
+            s += f", num_layers={self.num_layers}"
+        if self.dropout > 0:
+            s += f", dropout={self.dropout}"
+        s += ')'
+
+        return s
+
     def reset_parameters(self):
         for i in self.parameters():
             # apply orthogonal_ to weight
@@ -72,6 +83,7 @@ class BiLSTM(nn.Module):
             init = x.new_zeros(max_batch_size, self.hidden_size)
             hx = (init, init)
 
+        output = []
         for layer in range(self.num_layers):
             if self.training:
                 mask = SharedDropout.get_mask(x[:max_batch_size], self.dropout)
@@ -90,6 +102,6 @@ class BiLSTM(nn.Module):
                                           batch_sizes=batch_sizes,
                                           reverse=True)
             x = torch.cat([f_output, b_output], -1)
-        x = PackedSequence(x, sequence.batch_sizes)
+            output.append(PackedSequence(x, sequence.batch_sizes))
 
-        return x
+        return output

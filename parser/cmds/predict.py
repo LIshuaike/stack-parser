@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from parser import JointModel, Model
+from parser import BiaffineParser, Model
 from parser.utils import Corpus
 from parser.utils.data import TextDataset, batchify
 
@@ -25,8 +25,8 @@ class Predict(object):
     def __call__(self, config):
         print("Load the model")
         vocab = torch.load(config.vocab)
-        parser = JointModel.load(config.model)
-        model = Model(vocab, parser)
+        parser = BiaffineParser.load(config.model)
+        model = Model(config, vocab, parser)
 
         print("Load the dataset")
         corpus = Corpus.load(config.fdata)
