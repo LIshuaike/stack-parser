@@ -47,6 +47,11 @@ class Corpus(object):
     def rels(self):
         return [[self.root] + list(sentence.DEPREL) for sentence in self]
 
+    @tags.setter
+    def tags(self, sequences):
+        self.sentences = [sentence._replace(CPOS=sequence)
+                          for sentence, sequence in zip(self, sequences)]
+
     @heads.setter
     def heads(self, sequences):
         self.sentences = [sentence._replace(HEAD=sequence)

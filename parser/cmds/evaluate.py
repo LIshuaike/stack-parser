@@ -17,9 +17,9 @@ class Evaluate(object):
                                help='batch size')
         subparser.add_argument('--buckets', default=64, type=int,
                                help='max num of buckets to use')
-        subparser.add_argument('--punct', default=True, type=bool,
-                               help='whether to include punctuation')
-        subparser.add_argument('--fdata', default='data/test.gold.conllx',
+        subparser.add_argument('--nopunct', dest='punct', action='store_false',
+                               help='whether to exclude punctuation')
+        subparser.add_argument('--fdata', default='data/conll09/test.conllx',
                                help='path to dataset')
 
         return subparser
